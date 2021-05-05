@@ -22,9 +22,9 @@ optional arguments:
 $ python3 textract.py MUST rfcdoc.txt
 
 Extracting sentence(s) with keyword: "MUST" (case-sensitive).
-> All documents related to the SSH protocols shall use the keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" to describe requirements
-> Lorem ipsum dolor sit amet, consectetur adipiscing elit
-> Morbi ornare massa urna, sed volutpat enim scelerisque et.
-> Aenean quis lacinia felis.
+> Names are case-sensitive, and MUST NOT be longer than 64 characters
+> They MUST have only a single at-sign in them
+> For this reason, it must be emphasized that peers MUST rekey before a wrap of the sequence numbers
+> In any event, where local security policy for the server host exists, it MUST be applied and enforced correctly
 4 sentence(s) extracted.
 ```
