@@ -1,6 +1,9 @@
 import argparse
 import re
 
+abbreviation_table = {
+    "e.g.,": "<ABBREV_EXAMPLE>"
+}
 
 def lookup_in_str(source: str, lookup: str, case_insensitive: bool = False):
     return (case_insensitive and lookup.lower() in source.lower()) or \
@@ -15,6 +18,18 @@ def highlight_lookup(source: str, lookup: str, case_insensitive: bool = False):
                                 f"\033[92m{lookup.lower()}\033[0m")
     else:
         output = output.replace(lookup, f"\033[92m{lookup}\033[0m")
+    return output
+
+def preprocess(source: str):
+    output = source
+    for abbreviation, tag in abbreviation_table.items():
+        output = output.replace(abbreviation, tag)
+    return output
+
+def postprocess(source: str):
+    output = source
+    for abbreviation, tag in abbreviation_table.items():
+        output = output.replace(tag, abbreviation)
     return output
 
 argparser = argparse.ArgumentParser(description="RFC document text extractor")
@@ -41,6 +56,8 @@ content = args.file.read()
 content = content.replace("   ", "") # RFC documents tend to have
                                      # 3-space indentation.
 
+content = preprocess(content) # Pre-process document content
+
 paragraphs = content.split("\n\n") # Extract paragraphs
 for paragraph in paragraphs:
     paragraph = paragraph.replace("\n", " ")
@@ -52,6 +69,8 @@ for paragraph in paragraphs:
         if lookup_in_str(sentence, args.keyword, args.case_insensitive):
             found += 1
 
+            sentence = postprocess(sentence) # Post-process sentence
+                                             # Undo pre-process (where required)
             output = highlight_lookup(sentence, args.keyword,
                                       args.case_insensitive)
             print(f"> {output}")
