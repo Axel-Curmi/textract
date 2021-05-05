@@ -1,6 +1,22 @@
 import argparse
 import re
 
+
+def lookup_in_str(source: str, lookup: str, case_insensitive: bool = False):
+    return (case_insensitive and lookup.lower() in source.lower()) or \
+           (not case_insensitive and lookup in source)
+
+def highlight_lookup(source: str, lookup: str, case_insensitive: bool = False):
+    output = source
+    if case_insensitive:
+        output = output.replace(lookup.upper(),
+                                f"\033[92m{lookup.upper()}\033[0m")
+        output = output.replace(lookup.lower(),
+                                f"\033[92m{lookup.lower()}\033[0m")
+    else:
+        output = output.replace(lookup, f"\033[92m{lookup}\033[0m")
+    return output
+
 argparser = argparse.ArgumentParser(description="RFC document text extractor")
 
 # Positional arguments
@@ -10,64 +26,34 @@ argparser.add_argument("file", metavar="FILE", type=argparse.FileType("r"),
                        help="The text file to look into")
 
 # Optional arguments
-argparser.add_argument("--case-sensitive", default=False, action="store_true",
-                       help="Enable case sensitivity when searching")
+argparser.add_argument("-i", "--case-insensitive", default=False,
+                       action="store_true",
+                       help="Disable case sensitivity when searching")
 
 args = argparser.parse_args()
+
+found = 0
+print(f"\033[94mExtracting sentence(s) with keyword: \"{args.keyword}\" " +
+      f"({'case-insensitive' if args.case_insensitive else 'case-sensitive'})" +
+      "\033[0m.")
 
 content = args.file.read()
 content = content.replace("   ", "") # RFC documents tend to have
                                      # 3-space indentation.
 
-# Find all keywords and obtain line numbers
-all_keyword_line_numbers = []
+paragraphs = content.split("\n\n") # Extract paragraphs
+for paragraph in paragraphs:
+    paragraph = paragraph.replace("\n", " ")
+    
+    sentences = paragraph.split(".") # Extract sentences
+    for sentence in sentences:
+        sentence = sentence.strip()
 
-args.file.seek(0) # Move to the beginning of the file
-for num, line in enumerate(args.file, 1):
-    if (args.case_sensitive and args.keyword in line) or \
-       (not args.case_sensitive and (args.keyword.upper() in line) or \
-                                    (args.keyword.lower() in line)):
-        all_keyword_line_numbers.append(num)
+        if lookup_in_str(sentence, args.keyword, args.case_insensitive):
+            found += 1
 
-# Find all sentences containing the keyword
-all_sentence_line_numers = []
+            output = highlight_lookup(sentence, args.keyword,
+                                      args.case_insensitive)
+            print(f"> {output}")
 
-pattern = f'(?:["(]*(?:\w|[<>=.\'])+[:;",)]*\s)*["(]*{args.keyword}[;",)]*(?:\s?["(]*(?:\w|[<>=.\'-])+[:;",)]*)*'
-sentence_regex = re.compile(pattern,
-                            0 if args.case_sensitive else re.IGNORECASE)
-
-for sentence in sentence_regex.findall(content):
-    # Obtain the line number of the sentence (if possible)
-    sentence_line_numbers = []
-
-    for lookup in sentence.split("\n"):
-        if (args.case_sensitive and args.keyword not in lookup) or \
-                (not args.case_sensitive and \
-                 args.keyword.upper() not in lookup and \
-                 args.keyword.lower() not in lookup):
-            continue
-
-        args.file.seek(0) # Move to the beginning of the file
-        for num, line in enumerate(args.file, 1):
-            if lookup in line:
-                sentence_line_numbers.append(num)
-                all_sentence_line_numers.append(num)
-                break
-
-    sentence = sentence.replace("\n", " ")
-
-    # Highlight the keyword
-    if args.case_sensitive:
-        sentence = sentence.replace(args.keyword,
-                                    f"\033[92m{args.keyword}\033[0m")
-    else:
-        sentence = sentence.replace(args.keyword.upper(),
-                                    f"\033[92m{args.keyword.upper()}\033[0m")
-        sentence = sentence.replace(args.keyword.lower(),
-                                    f"\033[92m{args.keyword.lower()}\033[0m")
-
-    print("{} > {}".format(sentence_line_numbers, sentence))
-
-not_found_line_numbers = [ i for i in all_keyword_line_numbers \
-                           if i not in all_sentence_line_numers ]
-print(f"Line numbers missing containg keyword: {not_found_line_numbers}")
+print(f"\033[94m{found} sentence(s) extracted.\033[0m")
